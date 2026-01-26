@@ -21,7 +21,7 @@ Puedo aplicar lo que aprendí sobre diseño generativo en mi perfil profesional 
 
 ## Bitácora de aplicación 
 ### Actividad 05
-
+CODIGO JAVA SCRIPT
 ``` js
 let port;
 let connectBtn;
@@ -68,9 +68,24 @@ function connectBtnClick() {
 }
 
 ```
+CODIGO PHYTON
+``` py
+from microbit import *
 
+uart.init(baudrate=115200)
+display.show(Image.BUTTERFLY)
+
+while True:
+    if button_a.is_pressed():
+        uart.write('A')
+        sleep(500)
+    if button_b.is_pressed():
+        uart.write('B')
+        sleep(500)
+```
 
 
 ## Bitácora de reflexión
+
 
 
