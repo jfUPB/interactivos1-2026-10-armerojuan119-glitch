@@ -83,9 +83,27 @@ while True:
         uart.write('B')
         sleep(500)
 ```
+¿Cómo funciona el sistema físico interactivo?
 
+El sistema físico interactivo que creé conecta una **micro:bit** con un programa hecho en **p5.js**, para que algo que hago en el mundo real se refleje en la pantalla del computador.
+
+Primero, la **micro:bit** funciona como un control. Cuando presiono el **botón A** o el **botón B**, la micro:bit envía una letra por el cable USB:
+- El botón **A** envía la letra **“A”**
+- El botón **B** envía la letra **“B”**
+
+Esa información viaja por el **puerto serial**, que funciona como un puente de comunicación entre la micro:bit y el computador.
+
+En el computador, el programa en **p5.js** está todo el tiempo escuchando si llega algún mensaje desde la micro:bit. Cuando recibe una letra, el programa la interpreta y decide qué hacer:
+
+- Si llega la letra **“A”**, el círculo que aparece en la pantalla se mueve hacia la **izquierda**.
+- Si llega la letra **“B”**, el círculo se mueve hacia la **derecha**.
+
+El círculo se dibuja dentro de un **canvas**, que es como una hoja en blanco digital. Cada vez que presiono un botón, el programa borra la pantalla y vuelve a dibujar el círculo en una nueva posición, por eso parece que el círculo se mueve.
+
+En resumen, este sistema es interactivo porque **una acción física** (presionar un botón) **genera una respuesta digital** (el movimiento del círculo). Esto demuestra cómo se pueden conectar dispositivos reales con programas para crear experiencias interactivas, como en videojuegos o controles digitales.
 
 ## Bitácora de reflexión
+
 
 
 
