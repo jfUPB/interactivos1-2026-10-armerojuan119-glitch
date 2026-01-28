@@ -106,7 +106,7 @@ while True:
                 display.show(Image.HAPPY)
 ```
 
-
+### Actividad 04
 
 
 
@@ -193,7 +193,9 @@ El círculo se dibuja dentro de un **canvas**, que es como una hoja en blanco di
 
 En resumen, este sistema es interactivo porque **una acción física** (presionar un botón) **genera una respuesta digital** (el movimiento del círculo). Esto demuestra cómo se pueden conectar dispositivos reales con programas para crear experiencias interactivas, como en videojuegos o controles digitales.
 
+
 ## Bitácora de reflexión
+
 
 
 
