@@ -20,6 +20,94 @@ Es una forma de crear arte usando programas o algoritmos que hacen que las imág
 Puedo aplicar lo que aprendí sobre diseño generativo en mi perfil profesional usando estas herramientas para crear propuestas más originales, explorar varias ideas en poco tiempo y mejorar mi proceso creativo.
 
 ### Actividad 03
+En esta actividad lo que sucede es: el micro bit nos enseña la imagen de un circulo que al presionar la letra **A**, se pinta de color **AMARILLO**, al presionar la letra **B**, se torna **ROJO** y si lo **sacudimos** se vuelve **VERDE**... Además tiene la opción de mandar señal e información al microbit físico mediante**(SEND LOVE)** la cual muestra una **CARITA FELÍZ** y seguido de esta un **CORAZÓN** pero el programa inicia con una **MARIPOSA.**
+Código java script
+``` js
+let port;
+let connectBtn;
+
+function setup() {
+    createCanvas(400, 400);
+    background(220);
+    port = createSerial();
+    connectBtn = createButton('Connect to micro:bit');
+    connectBtn.position(80, 300);
+    connectBtn.mousePressed(connectBtnClick);
+    let sendBtn = createButton('Send Love');
+    sendBtn.position(220, 300);
+    sendBtn.mousePressed(sendBtnClick);
+    fill('white');
+    ellipse(width / 2, height / 2, 100, 100);
+}
+
+function draw() {
+
+    if(port.availableBytes() > 0){
+        let dataRx = port.read(1);
+        if(dataRx == 'A'){
+            fill('red');
+        }
+        else if(dataRx == 'B'){
+            fill('yellow');
+        }
+        else{
+            fill('green');
+        }
+        background(220);
+        ellipse(width / 2, height / 2, 100, 100);
+        fill('black');
+        text(dataRx, width / 2, height / 2);
+    }
+
+
+    if (!port.opened()) {
+        connectBtn.html('Connect to micro:bit');
+    }
+    else {
+        connectBtn.html('Disconnect');
+    }
+}
+
+function connectBtnClick() {
+    if (!port.opened()) {
+        port.open('MicroPython', 115200);
+    } else {
+        port.close();
+    }
+}
+
+function sendBtnClick() {
+    port.write('h');
+}
+```
+Código python
+```py
+from microbit import *
+
+uart.init(baudrate=115200)
+display.show(Image.BUTTERFLY)
+
+while True:
+    if button_a.is_pressed():
+        uart.write('A')
+        sleep(500)
+    if button_b.is_pressed():
+        uart.write('B')
+        sleep(500)
+    if accelerometer.was_gesture('shake'):
+        uart.write('C')
+        sleep(500)
+    if uart.any():
+        data = uart.read(1)
+        if data:
+            if data[0] == ord('h'):
+                display.show(Image.HEART)
+                sleep(500)
+                display.show(Image.HAPPY)
+```
+
+
+
 
 
 ## Bitácora de aplicación 
@@ -106,6 +194,7 @@ El círculo se dibuja dentro de un **canvas**, que es como una hoja en blanco di
 En resumen, este sistema es interactivo porque **una acción física** (presionar un botón) **genera una respuesta digital** (el movimiento del círculo). Esto demuestra cómo se pueden conectar dispositivos reales con programas para crear experiencias interactivas, como en videojuegos o controles digitales.
 
 ## Bitácora de reflexión
+
 
 
 
