@@ -19,6 +19,9 @@ Es una forma de crear arte usando programas o algoritmos que hacen que las imág
 
 Puedo aplicar lo que aprendí sobre diseño generativo en mi perfil profesional usando estas herramientas para crear propuestas más originales, explorar varias ideas en poco tiempo y mejorar mi proceso creativo.
 
+### Actividad 03
+
+
 ## Bitácora de aplicación 
 ### Actividad 05
 CODIGO JAVA SCRIPT
@@ -103,6 +106,7 @@ El círculo se dibuja dentro de un **canvas**, que es como una hoja en blanco di
 En resumen, este sistema es interactivo porque **una acción física** (presionar un botón) **genera una respuesta digital** (el movimiento del círculo). Esto demuestra cómo se pueden conectar dispositivos reales con programas para crear experiencias interactivas, como en videojuegos o controles digitales.
 
 ## Bitácora de reflexión
+
 
 
 
