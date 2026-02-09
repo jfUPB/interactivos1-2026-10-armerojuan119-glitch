@@ -4,6 +4,8 @@
 
 
 ## Bitácora de aplicación 
+Diagrama de PlantUML
+
 
 
 ## Bitácora de reflexión
