@@ -32,7 +32,7 @@ from microbit import *
 import utime
 import music
 
-# Función para crear las imágenes de llenado del display
+# Crear las imágenes de llenado del display
 def make_fill_images(on='9', off='0'):
     imgs = []
     for n in range(26):
@@ -49,7 +49,7 @@ def make_fill_images(on='9', off='0'):
 
 FILL = make_fill_images()
 
-# Clase Timer
+
 class Timer:
     def __init__(self, owner, event_to_post, duration):
         self.owner = owner
@@ -73,7 +73,7 @@ class Timer:
                 self.active = False
                 self.owner.post_event(self.event)
 
-# Clase Task con máquina de estados
+# Máquina de estados
 class Task:
     def __init__(self):
         self.event_queue = []
@@ -175,5 +175,6 @@ while True:
 ```
 
 ## Bitácora de reflexión
+
 
 
