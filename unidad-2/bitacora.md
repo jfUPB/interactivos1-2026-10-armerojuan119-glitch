@@ -69,35 +69,34 @@ self.myTimer.start()
 ### Actividad 2
 ```
 @startuml
-title Semaforo - UML State Machine
-
-[*] --> WaitInRed : Semaforo() (constructor)
-
-' =========================
-' ESTADO ROJO
-' =========================
-WaitInRed : entry /\n  clear()\n  display.set_pixel(x,y,9)\n  myTimer.start(timeInRed)
-
-WaitInRed --> WaitInGreen : Timeout /\n  display.set_pixel(x,y,0)
-
-' =========================
-' ESTADO VERDE
-' =========================
-WaitInGreen : entry /\n  clear()\n  display.set_pixel(x,y+2,9)\n  myTimer.start(timeInGreen)
-
-WaitInGreen --> WaitInYellow : Timeout /\n  display.set_pixel(x,y+2,0)
-
-WaitInGreen --> WaitInYellow : A /\n  display.set_pixel(x,y+2,0)
-
-' =========================
-' ESTADO AMARILLO
-' =========================
-WaitInYellow : entry /\n  clear()\n  display.set_pixel(x,y+1,9)\n  myTimer.start(timeInYellow)
-
-WaitInYellow --> WaitInRed : Timeout /\n  display.set_pixel(x,y+1,0)
-
+title - Pixel UML State Machine
+[*] -->WaitRed : semaforo() (rojo ON y crear timer)
+WaitRed: entry/ rojo ON y timer.start(2000)
+WaitRed --> WaitGreen: Timeout / rojo OFF
+WaitGreen: entry / vende ON y timer, start (1000) 
+WaitGreen --> WaitYellow: Timeout / verde OFF
+WaitYellow: entry/amarillo ON y timer-start (5000)
+WaitYellow --> WaitRed: Timeout / amarillo OFF   
 @enduml
 ```
+
+
+### Actividad 3
+Reflexión personal
+
+Después de revisar el código y la máquina de estados, hay algunas cosas que todavía no comprendo completamente.
+
+Por ejemplo, todavía me genera duda cómo funciona exactamente el método `transicion_a()`. Entiendo que cambia de estado y que primero ejecuta un evento `"EXIT"` y luego un `"ENTRY"`, pero me gustaría profundizar más en por qué es necesario enviar esos eventos manualmente y qué pasaría si no se hiciera así.
+
+También me parece interesante cómo el `Timer` puede generar el evento `"Timeout"` sin detener el programa. Aunque entiendo que usa `utime.ticks_ms()`, todavía quiero comprender mejor cómo logra medir el tiempo sin bloquear la ejecución, ya que en otros programas normalmente usamos `sleep()`.
+
+Otra cosa que quiero analizar más es cómo la cola de eventos (`event_queue`) ayuda a organizar la concurrencia. Sé que almacena los eventos antes de procesarlos, pero me gustaría experimentar qué pasaría si se eliminara la cola y se llamara directamente al estado.
+
+En general, entiendo la lógica del programa y cómo se relaciona con la máquina de estados, pero siento que necesito practicar más para poder diseñar una máquina de estados desde cero sin mirar un ejemplo.
+
+
+
+
 ## Bitácora de aplicación 
 Diagrama de PlantUML
 ```
@@ -506,6 +505,7 @@ while True:
 </body>
 </html>
 ```
+
 
 
 
