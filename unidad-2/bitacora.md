@@ -3,11 +3,11 @@
 ## Bitácora de proceso de aprendizaje
 ### actividad 1... Análisis de una máquina de estados simple (micro:bit)
 
-## ¿Cuáles son los estados en el programa?
+¿Cuáles son los estados en el programa?
 
 Depende de la implementación que analicemos.
 
-### Primera versión del programa
+Primera versión del programa
 
 Existe **un solo estado explícito**:
 
@@ -20,7 +20,7 @@ Sin embargo, dentro de ese estado el sistema alterna entre dos condiciones inter
 
 En esta versión el cambio entre encendido y apagado ocurre dentro del mismo estado cuando sucede el evento `"Timeout"`.
 
-### Segunda versión del programa (modelo más formal)
+Segunda versión del programa (modelo más formal)
 
 En esta implementación los estados están claramente definidos:
 
@@ -29,7 +29,7 @@ En esta implementación los estados están claramente definidos:
 
 Este modelo representa mejor una máquina de estados porque cada estado describe una condición clara del sistema y las transiciones están bien separadas.
 
-## ¿Cuáles son los eventos en el programa?
+¿Cuáles son los eventos en el programa?
 
 Los eventos son señales que provocan acciones o cambios de estado.
 
@@ -47,22 +47,22 @@ Los eventos del programa son:
   Es generado por la clase `Timer` cuando el tiempo programado se cumple.  
   Este evento provoca el cambio de estado o el cambio de valor del pixel.
 
-## ¿Cuáles son las acciones en el programa?
+¿Cuáles son las acciones en el programa?
 
 Las acciones son las operaciones que el sistema realiza cuando ocurre un evento.
 
 Las acciones principales son:
 
-## Encender el pixel
+Encender el pixel
 
 ```python
 display.set_pixel(self.x, self.y, 9)
 ```
-## Apagar el pixel
+Apagar el pixel
 ```python
 display.set_pixel(self.x, self.y, 0)
 ```
-## Iniciar el temporizador
+Iniciar el temporizador
 ```python
 self.myTimer.start()
 ```
@@ -474,4 +474,5 @@ while True:
 </body>
 </html>
 ```
+
 
