@@ -1,8 +1,71 @@
 # Unidad 2
 
 ## Bitácora de proceso de aprendizaje
+### actividad 1... Análisis de una máquina de estados simple (micro:bit)
 
+## ¿Cuáles son los estados en el programa?
 
+Depende de la implementación que analicemos.
+
+### Primera versión del programa
+
+Existe **un solo estado explícito**:
+
+- `estado_waitTimeout`
+
+Sin embargo, dentro de ese estado el sistema alterna entre dos condiciones internas:
+
+- Pixel encendido (`pixelState = 9`)
+- Pixel apagado (`pixelState = 0`)
+
+En esta versión el cambio entre encendido y apagado ocurre dentro del mismo estado cuando sucede el evento `"Timeout"`.
+
+### Segunda versión del programa (modelo más formal)
+
+En esta implementación los estados están claramente definidos:
+
+1. `estado_waitInON` → El pixel está encendido.
+2. `estado_waitInOFF` → El pixel está apagado.
+
+Este modelo representa mejor una máquina de estados porque cada estado describe una condición clara del sistema y las transiciones están bien separadas.
+
+## ¿Cuáles son los eventos en el programa?
+
+Los eventos son señales que provocan acciones o cambios de estado.
+
+Los eventos del programa son:
+
+- `"ENTRY"`  
+  Se ejecuta automáticamente cuando se entra a un estado.  
+  Se usa para realizar acciones iniciales.
+
+- `"EXIT"`  
+  Se ejecuta cuando se sale de un estado.  
+  (En este programa no se usa mucho, pero está definido.)
+
+- `"Timeout"`  
+  Es generado por la clase `Timer` cuando el tiempo programado se cumple.  
+  Este evento provoca el cambio de estado o el cambio de valor del pixel.
+
+## ¿Cuáles son las acciones en el programa?
+
+Las acciones son las operaciones que el sistema realiza cuando ocurre un evento.
+
+Las acciones principales son:
+
+## Encender el pixel
+
+```python
+display.set_pixel(self.x, self.y, 9)
+```
+## Apagar el pixel
+```python
+display.set_pixel(self.x, self.y, 0)
+```
+## Iniciar el temporizador
+```python
+self.myTimer.start()
+```
 ## Bitácora de aplicación 
 Diagrama de PlantUML
 ```
@@ -175,6 +238,7 @@ while True:
 ```
 
 ## Bitácora de reflexión
+
 
 
 
