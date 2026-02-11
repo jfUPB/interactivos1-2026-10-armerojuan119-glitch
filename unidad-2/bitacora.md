@@ -1,7 +1,7 @@
 # Unidad 2
 
 ## Bitácora de proceso de aprendizaje
-### actividad 1... Análisis de una máquina de estados simple (micro:bit)
+### Actividad 1
 
 ¿Cuáles son los estados en el programa?
 
@@ -65,6 +65,38 @@ display.set_pixel(self.x, self.y, 0)
 Iniciar el temporizador
 ```python
 self.myTimer.start()
+```
+### Actividad 2
+```
+@startuml
+title Semaforo - UML State Machine
+
+[*] --> WaitInRed : Semaforo() (constructor)
+
+' =========================
+' ESTADO ROJO
+' =========================
+WaitInRed : entry /\n  clear()\n  display.set_pixel(x,y,9)\n  myTimer.start(timeInRed)
+
+WaitInRed --> WaitInGreen : Timeout /\n  display.set_pixel(x,y,0)
+
+' =========================
+' ESTADO VERDE
+' =========================
+WaitInGreen : entry /\n  clear()\n  display.set_pixel(x,y+2,9)\n  myTimer.start(timeInGreen)
+
+WaitInGreen --> WaitInYellow : Timeout /\n  display.set_pixel(x,y+2,0)
+
+WaitInGreen --> WaitInYellow : A /\n  display.set_pixel(x,y+2,0)
+
+' =========================
+' ESTADO AMARILLO
+' =========================
+WaitInYellow : entry /\n  clear()\n  display.set_pixel(x,y+1,9)\n  myTimer.start(timeInYellow)
+
+WaitInYellow --> WaitInRed : Timeout /\n  display.set_pixel(x,y+1,0)
+
+@enduml
 ```
 ## Bitácora de aplicación 
 Diagrama de PlantUML
@@ -474,5 +506,6 @@ while True:
 </body>
 </html>
 ```
+
 
 
