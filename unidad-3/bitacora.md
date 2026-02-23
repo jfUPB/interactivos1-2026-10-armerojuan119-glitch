@@ -473,12 +473,339 @@ En general, la implementación es clara, reutilizable y bien estructurada. Me de
 
 ## Bitácora de aplicación 
 ### Actividad 4
+```py
+from microbit import *
+import utime
+
+while True:
+    if button_a.was_pressed():
+        uart.write("A\n")
+    if button_b.was_pressed():
+        uart.write("B\n")
+    if button_a.is_pressed() and button_b.is_pressed():
+        uart.write("S\n")
+    utime.sleep_ms(50)
+```
+
+```c#
+const TIMER_LIMITS = {
+  min: 15,
+  max: 25,
+  defaultValue: 20,
+};
+
+const EVENTS = {
+  DEC: "A",
+  INC: "B",
+  START: "S",
+  TICK: "Timeout",
+};
+
+const UI = {
+  dialSize: 250,
+  ringWeight: 20,
+  bigText: 100,
+  configText: 120,
+  helpText: 18,
+};
 
 
+class Temporizador extends FSMTask {
+  constructor(minValue, maxValue, defaultValue) {
+    super();
 
-## Bitácora de reflexión
-### Actividad 5
+    this.minValue = minValue;
+    this.maxValue = maxValue;
+    this.defaultValue = defaultValue;
+    this.configValue = defaultValue;
+    this.totalSeconds = defaultValue;
+    this.remainingSeconds = defaultValue;
+
+    // buffer for recent button events while running
+    this._seqBuffer = [];
+
+    this.myTimer = this.addTimer(EVENTS.TICK, 1000);
+    this.transitionTo(this.estado_config);
+
+  }
+
+  get currentState() {
+    return this.state;
+  }
+
+  estado_config = (ev) => {
+    if (ev === ENTRY) {
+      this.configValue = this.defaultValue;
+    }
+    else if (ev === EVENTS.DEC) {
+      if (this.configValue > this.minValue) this.configValue--;
+    } else if (ev === EVENTS.INC) {
+      if (this.configValue < this.maxValue) this.configValue++;
+    } else if (ev === EVENTS.START) {
+      this.totalSeconds = this.configValue;
+      this.remainingSeconds = this.totalSeconds;
+      this.transitionTo(this.estado_armed);
+    }
+  };
 
 
+  estado_armed = (ev) => {
+    // track A-B-A sequence and reset if detected
+    const record = (symbol) => {
+      this._seqBuffer.push(symbol);
+      if (this._seqBuffer.length > 3) this._seqBuffer.shift();
+      if (
+        this._seqBuffer.length === 3 &&
+        this._seqBuffer[0] === EVENTS.DEC &&
+        this._seqBuffer[1] === EVENTS.INC &&
+        this._seqBuffer[2] === EVENTS.DEC
+      ) {
+        // sequence matched: restart
+        this.transitionTo(this.estado_config);
+        return true;
+      }
+      return false;
+    };
+
+    if (ev === ENTRY) {
+      this._seqBuffer = [];
+      this.myTimer.start();
+    } else if (ev === EVENTS.TICK) {
+      if (this.remainingSeconds > 0) {
+        this.remainingSeconds--;
+        if (this.remainingSeconds === 0) {
+          this.transitionTo(this.estado_timeout);
+        } else {
+          this.myTimer.start();
+        }
+      }
+    } else if (ev === EVENTS.DEC || ev === EVENTS.INC) {
+      // ignore value change but record to check pattern
+      if (record(ev)) return; // if triggered reset, skip further handling
+    } else if (ev === EXIT) {
+      this.myTimer.stop();
+    }
+
+  };
+
+  estado_timeout = (ev) => {
+    if (ev === ENTRY) {
+      console.log("¡TIEMPO!");
+    } else if (ev === EVENTS.DEC) {
+      this.transitionTo(this.estado_config);
+    }
+  }
+}
+
+let temporizador;
+const renderer = new Map();
+
+// ---- serial communication support via Web Serial API ----
+let port;
+
+async function connectSerial() {
+  try {
+    // prompt user to select a serial port
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 115200 });
+    console.log('Port opened');
+    readSerial();
+  } catch (err) {
+    console.error('Serial connection failed', err);
+  }
+}
+
+async function readSerial() {
+  const textDecoder = new TextDecoderStream();
+  const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+  const reader = textDecoder.readable.getReader();
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (value) {
+        let msg = value.trim();
+        if (msg === EVENTS.DEC || msg === EVENTS.INC || msg === EVENTS.START) {
+          temporizador.postEvent(msg);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Read error', err);
+  } finally {
+    reader.releaseLock();
+  }
+}
 
 
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  temporizador = new Temporizador(
+    TIMER_LIMITS.min,
+    TIMER_LIMITS.max,
+    TIMER_LIMITS.defaultValue
+  );
+  textAlign(CENTER, CENTER);
+
+  // set up rendering callbacks
+  renderer.set(temporizador.estado_config, () => drawConfig(temporizador.configValue));
+  renderer.set(temporizador.estado_armed, () => drawArmed(temporizador.remainingSeconds, temporizador.totalSeconds));
+  renderer.set(temporizador.estado_timeout, () => drawTimeout());
+
+  // create connect button for Web Serial
+  const btn = createButton('connect serial');
+  btn.position(10, 10);
+  btn.mousePressed(connectSerial);
+}
+
+function draw() {
+  temporizador.update();
+  renderer.get(temporizador.currentState)?.();
+}
+
+function drawConfig(val) {
+  background(20, 40, 80);
+  fill(255);
+  textSize(120);
+  text(val, width / 2, height / 2);
+  textSize(18);
+  fill(200);
+  text("A(-) B(+) S(start)", width / 2, height / 2 + 100);
+}
+
+function drawArmed(val, total) {
+  background(20, 20, 20);
+  let pulse = sin(frameCount * 0.1) * 10;
+
+  noFill();
+  strokeWeight(20);
+  stroke(255, 100, 0, 50);
+  ellipse(width / 2, height / 2, 250);
+
+  stroke(255, 150, 0);
+  let angle = map(val, 0, total, 0, TWO_PI);
+  arc(width / 2, height / 2, 250, 250, -HALF_PI, angle - HALF_PI);
+
+  fill(255);
+  noStroke();
+  textSize(100 + pulse);
+  text(val, width / 2, height / 2);
+}
+
+function drawTimeout() {
+  let bg = frameCount % 20 < 10 ? color(150, 0, 0) : color(255, 0, 0);
+  background(bg);
+  fill(255);
+  textSize(100);
+  text("¡TIEMPO!", width / 2, height / 2);
+}
+
+function keyPressed() {
+  if (key === "a" || key === "A") temporizador.postEvent("A");
+  if (key === "b" || key === "B") temporizador.postEvent("B");
+  if (key === "s" || key === "S") temporizador.postEvent("S");
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+
+```
+Qué hice y cómo avancé
+Comencé con el código base
+
+Tenía una clase Temporizador con tres estados: configuración, armado y tiempo cumplido.
+La pantalla mostraba el valor y podía manejar las teclas A, B y S para ajustar y arrancar.
+Probé la librería p5.serialport
+
+Añadí <script src="…/p5.serialport.js"> al HTML y creé new p5.SerialPort() en setup().
+Registré callbacks (on('data'), etc.) y esperé a que llegaran datos.
+Al ejecutar en el navegador apareció el error:
+TypeError: p5.SerialPort is not a constructor.
+Investigación del error
+
+Vi que la librería necesitaba un servidor aparte (p5.serialserver) y que el constructor
+simplemente no existía en el contexto.
+Decidí no seguir gastando tiempo con ella y buscqué otra forma más sencilla.
+Implementé Web Serial nativo
+
+Eliminé la dependencia del HTML.
+
+Escribí dos funciones:
+```
+let port;
+
+async function connectSerial() {
+  port = await navigator.serial.requestPort();
+  await port.open({ baudRate: 115200 });
+  readSerial();
+}
+
+async function readSerial() {
+  const textDecoder = new TextDecoderStream();
+  port.readable.pipeTo(textDecoder.writable);
+  const reader = textDecoder.readable.getReader();
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    if (value) {
+      let msg = value.trim();
+      if ([EVENTS.DEC, EVENTS.INC, EVENTS.START].includes(msg)) {
+        temporizador.postEvent(msg);
+      }
+    }
+  }
+  reader.releaseLock();
+}
+```
+Puse un botón “connect serial” en el setup() para pedir el puerto cuando quisiera.
+
+Dejé keyPressed() para poder seguir usando el teclado durante las pruebas.
+
+Añadí la secuencia A‑B‑A
+
+En el constructor guardé un arreglo _seqBuffer para los últimos tres eventos.
+
+En estado_armed registré cada DEC o INC y, si el búfer contenía A,B,A,
+hacía transitionTo(this.estado_config) para reiniciar el temporizador:
+```
+const record = (symbol) => {
+  this._seqBuffer.push(symbol);
+  if (this._seqBuffer.length > 3) this._seqBuffer.shift();
+  if (
+    this._seqBuffer.length === 3 &&
+    this._seqBuffer[0] === EVENTS.DEC &&
+    this._seqBuffer[1] === EVENTS.INC &&
+    this._seqBuffer[2] === EVENTS.DEC
+  ) {
+    this.transitionTo(this.estado_config);
+    return true;
+  }
+  return false;
+};
+```
+Probé todo en acción
+
+Serví la carpeta con python -m http.server porque Web Serial no funciona en .
+Abrí la página en Chrome, hice click en “connect serial” y seleccioné el micro:bit.
+Presioné los botones del micro:bit:
+A y B ajustaban el valor, S lo arrancaba.
+Durante la cuenta, A‑B‑A reiniciaba el temporizador como quería.
+⚠️ Problemas que encontré y cómo los resolví
+Constructor de p5.serialport no existe
+→ La librería no era compatible. Terminé borrándola y usando la Web Serial.
+
+El navegador bloqueaba el puerto desde file://
+→ Usé un servidor local para que la API funcionara.
+
+📚 Lo que aprendí
+La API Web Serial es muy práctica y elimina dependencias extra.
+Siempre conviene comprobar si una librería está viva y funciona en el
+entorno que estamos usando.
+Manejar streams asíncronos (con TextDecoderStream y getReader) es fácil una vez
+entiendes el patrón.
+Es útil dejar un “modo teclado” mientras desarrollas con hardware real.
+Documentar el proceso (qué probé, qué falló, cómo lo solucioné) ayuda a no olvidarlo
+y a preparar la entrega.
+Así es como avancé, probé, fallé y finalmente lo conseguí. Puedes usar este texto tal cual
+en tu informe o adaptarlo a tu estilo.
