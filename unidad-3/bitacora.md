@@ -404,10 +404,15 @@ Después de detectar A-B-A, volvía a dispararse.
 
 Pensar en estados evita errores lógicos.
 
+### Actividad 3
+
 ## Bitácora de aplicación 
+### Actividad 4
 
 
 
 ## Bitácora de reflexión
+### Actividad 5
+
 
 
