@@ -1,7 +1,7 @@
 # Unidad 3
 
 ## Bitácora de proceso de aprendizaje
-# Actividad1
+### Actividad1
 - Primero analicé la máquina de estados original del semáforo.
 
 - Identifiqué que debía agregar nuevos estados en lugar de meter lógica dentro de los existentes.
@@ -250,7 +250,7 @@ Se utilizó `semaforo.post_event("A")` y `semaforo.post_event("B")` para enviar 
 **Aprendizaje:**  
 En arquitecturas orientadas a eventos, los botones no cambian estados directamente, sino que generan eventos que el sistema procesa.
 
-# Actividad2
+### Actividad2
 
 **Objetivo de la modificación**
 
@@ -409,4 +409,5 @@ Pensar en estados evita errores lógicos.
 
 
 ## Bitácora de reflexión
+
 
