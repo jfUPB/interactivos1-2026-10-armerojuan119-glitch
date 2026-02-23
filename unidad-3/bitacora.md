@@ -405,6 +405,71 @@ Después de detectar A-B-A, volvía a dispararse.
 Pensar en estados evita errores lógicos.
 
 ### Actividad 3
+**Descripción general**
+
+En esta actividad analicé la implementación de un temporizador desarrollado en p5.js utilizando la técnica de Máquina de Estados Finita (FSM). El sistema está dividido en tres partes principales: la clase base `FSMTask`, la clase `Timer`, y la clase concreta `Temporizador`, que define los estados específicos del programa.
+
+Lo primero que noté es que la lógica del programa está claramente separada del renderizado. La máquina de estados se encarga únicamente del comportamiento, mientras que las funciones `drawConfig`, `drawArmed` y `drawTimeout` se encargan de la parte visual. Esto hace que el código sea más ordenado y fácil de entender.
+
+---
+
+**Comprensión de la Máquina de Estados**
+
+La clase `FSMTask` funciona como una base genérica para crear máquinas de estado. Maneja:
+
+- Una cola de eventos.
+- Una lista de temporizadores.
+- El estado actual.
+- Las transiciones entre estados usando `ENTRY` y `EXIT`.
+
+Me pareció importante cómo se manejan las transiciones. Cada vez que se cambia de estado, primero se ejecuta el `EXIT` del estado anterior y luego el `ENTRY` del nuevo estado. Esto permite que cada estado tenga su propia lógica de inicialización y limpieza.
+
+El método `update()` procesa primero los temporizadores y luego los eventos en cola. Esto hace que el sistema sea completamente reactivo y organizado.
+
+---
+
+**Análisis del Timer**
+
+La clase `Timer` utiliza `millis()` para medir el tiempo, lo cual es independiente del frame rate. Cuando se cumple la duración configurada, el temporizador publica un evento al objeto dueño (owner).
+
+Entendí que el temporizador es de tipo "one-shot", es decir, se activa una vez y luego debe reiniciarse manualmente. En el estado `estado_armed`, cada vez que ocurre un `TICK`, se vuelve a iniciar el timer si aún quedan segundos por contar.
+
+Una posible mejora sería permitir un modo repetitivo automático para evitar tener que reiniciarlo manualmente en cada ciclo.
+
+---
+
+**Estados del Temporizador**
+
+El temporizador tiene tres estados:
+
+1. `estado_config`: Permite configurar el valor inicial dentro de los límites establecidos.
+2. `estado_armed`: Realiza la cuenta regresiva segundo a segundo.
+3. `estado_timeout`: Se activa cuando el tiempo llega a cero.
+
+El flujo es claro:
+
+CONFIG → ARMED → TIMEOUT → CONFIG
+
+Me parece que la estructura está bien definida y es fácil de seguir. Cada estado tiene responsabilidades específicas y no mezcla lógica con otras partes del sistema.
+
+---
+**Renderizado**
+
+El renderizado depende del estado actual mediante un `Map` que asocia cada estado con su función de dibujo correspondiente. Esto evita usar múltiples estructuras condicionales dentro de `draw()`.
+
+En el estado activo (`estado_armed`), se utiliza un arco para representar visualmente el tiempo restante, lo cual facilita la comprensión del progreso. También se aplica un pequeño efecto visual al número usando una función seno para generar una animación sutil.
+
+Considero que podría mejorarse agregando cambios de color progresivos según el tiempo restante o una animación más marcada al llegar a los últimos segundos.
+
+---
+
+**Reflexiones personales**
+
+Este ejercicio me ayudó a entender mejor cómo implementar una máquina de estados en p5.js sin depender de estructuras condicionales extensas. La FSM organiza el flujo del programa y hace que cada parte tenga una función clara.
+
+También comprendí la importancia de separar la lógica del renderizado. Esto hace que el código sea más escalable y fácil de modificar.
+
+En general, la implementación es clara, reutilizable y bien estructurada. Me deja una buena base para aplicar esta técnica en proyectos más complejos, como juegos o aplicaciones interactivas que requieran múltiples estados y transiciones bien definidas.
 
 ## Bitácora de aplicación 
 ### Actividad 4
@@ -413,6 +478,7 @@ Pensar en estados evita errores lógicos.
 
 ## Bitácora de reflexión
 ### Actividad 5
+
 
 
 
