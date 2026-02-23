@@ -1,6 +1,7 @@
 # Unidad 3
 
 ## Bitácora de proceso de aprendizaje
+# Actividad1
 - Primero analicé la máquina de estados original del semáforo.
 
 - Identifiqué que debía agregar nuevos estados en lugar de meter lógica dentro de los existentes.
@@ -249,8 +250,163 @@ Se utilizó `semaforo.post_event("A")` y `semaforo.post_event("B")` para enviar 
 **Aprendizaje:**  
 En arquitecturas orientadas a eventos, los botones no cambian estados directamente, sino que generan eventos que el sistema procesa.
 
+# Actividad2
+
+**Objetivo de la modificación**
+
+El objetivo fue mejorar el temporizador para que:
+
+- Al presionar **A** mientras corre → el temporizador se pause.
+
+- Al presionar **A** otra vez → el temporizador se reanude desde donde quedó.
+
+- Si el temporizador está corriendo y se presiona la secuencia A-B-A → el sistema vuelva al modo de configuración.
+
+Esto implica manejar estado interno, tiempo restante y detección de secuencias de botones.
+
+---
+**Estrategia que seguí**
+
+Para implementar esto decidí:
+
+1. Agregar una variable paused.
+
+2. Guardar el tiempo restante cuando se pausa.
+
+3.  reanudar, iniciar el timer con ese tiempo restante.
+
+4. Crear una lista seq para detectar la secuencia A-B-A.
+
+5. Limpiar la secuencia cuando ya se evalúa.
+``` C#
+from microbit import *
+import utime
+
+class Timer:
+    def __init__(self, duration):
+        self.duration = duration
+        self.start_time = 0
+        self.active = False
+        self.paused = False
+        self.remaining = duration
+
+    def start(self, d=None):
+        if d is not None:
+            self.duration = d
+            self.remaining = d
+        self.start_time = utime.ticks_ms()
+        self.active = True
+        self.paused = False
+
+    def pause(self):
+        if self.active and not self.paused:
+            now = utime.ticks_ms()
+            elapsed = utime.ticks_diff(now, self.start_time)
+            self.remaining = self.duration - elapsed
+            self.paused = True
+
+    def resume(self):
+        if self.active and self.paused:
+            self.start_time = utime.ticks_ms()
+            self.duration = self.remaining
+            self.paused = False
+
+    def stop(self):
+        self.active = False
+        self.paused = False
+
+    def finished(self):
+        if self.active and not self.paused:
+            now = utime.ticks_ms()
+            return utime.ticks_diff(now, self.start_time) >= self.duration
+        return False
+
+
+timer = Timer(5000)
+
+mode = "config"
+seq = []
+
+display.show("C")
+
+while True:
+
+    # -------- BOTONES --------
+    if button_a.was_pressed():
+
+        if mode == "run":
+            seq.append("A")
+
+            if timer.paused:
+                timer.resume()
+            else:
+                timer.pause()
+
+        elif mode == "config":
+            timer.start()
+            mode = "run"
+            display.show(Image.SQUARE)
+
+    if button_b.was_pressed():
+        if mode == "run":
+            seq.append("B")
+
+    # -------- DETECTAR SECUENCIA A-B-A --------
+    if mode == "run" and seq[-3:] == ["A","B","A"]:
+        timer.stop()
+        mode = "config"
+        seq = []
+        display.show("C")
+
+    # -------- TIMER --------
+    if mode == "run" and timer.finished():
+        display.show(Image.YES)
+        timer.stop()
+        mode = "config"
+        seq = []
+
+    utime.sleep_ms(20)
+```
+**Errores que tuve y cómo los solucioné**
+**Error 1:** El temporizador reiniciaba desde cero al reanudar
+
+Al principio simplemente detenía el timer y lo volvía a iniciar, pero eso hacía que empezara desde el tiempo completo.
+
+**Solución**: Guardar el tiempo restante con: `remaining = duration - (ahora - start_time)` Y luego usar ese valor al reanudar.
+
+---
+**Error 2:** El botón A generaba múltiples pausas seguidas
+
+Usé button_a.is_pressed() y el evento se repetía muchas veces.
+
+**Solución:** Cambiar a: `button_a.was_pressed()`, esto generó un solo evento por pulsación.
+
+---
+**Error 3:** La secuencia A-B-A se detectaba incluso cuando estaba pausado... La lógica de secuencia corría siempre.
+
+**Solución:** Solo evaluar la secuencia cuando el temporizador está corriendo.
+
+---
+**Error 4:** La secuencia se quedaba guardada
+
+Después de detectar A-B-A, volvía a dispararse.
+
+**Solución:** Limpiar la lista seq después de usarla.
+
+---
+**Lo que aprendí**
+
+- Pausar timers implica guardar estado, no solo detenerlos.
+
+- Detectar secuencias requiere memoria temporal (listas o buffers).
+
+- was_pressed() es clave.
+
+Pensar en estados evita errores lógicos.
+
 ## Bitácora de aplicación 
 
 
 
 ## Bitácora de reflexión
+
