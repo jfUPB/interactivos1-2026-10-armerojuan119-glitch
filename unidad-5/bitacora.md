@@ -59,7 +59,7 @@ Si el receptor interpreta mal el formato `(>2h2B)`, los datos se leerán incorre
 
 ---
 
-### 3. Representación del paquete en hexadecimal
+### Representación del paquete en hexadecimal
 
 Valores dados:
 ```
