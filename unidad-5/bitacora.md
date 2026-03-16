@@ -57,6 +57,8 @@ Para entender los datos se necesitan herramientas como:
 
 Si el receptor interpreta mal el formato `(>2h2B)`, los datos se leerán incorrectamente.
 
+---
+
 ### 3. Representación del paquete en hexadecimal
 
 Valores dados:
@@ -70,7 +72,10 @@ Formato:
 ```
 >2h2B
 ```
-Paso 1 – Convertir cada valor
+
+---
+
+**Convertir cada valor**
 
 xValue = 500
 
@@ -82,6 +87,9 @@ Como `h` usa 2 bytes:
 ```
 01 F4
 ```
+
+---
+
 yValue = 524
 
 En hexadecimal:
@@ -92,6 +100,8 @@ En 2 bytes:
 ```
 02 0C
 ```
+---
+
 aState = True
 
 Se convierte a entero:
@@ -104,6 +114,8 @@ Como `B` usa 1 byte:
 ```
 01
 ```
+---
+
 bState = False
 ```
 False → 0
@@ -112,6 +124,9 @@ En 1 byte:
 ```
 00
 ```
+
+---
+
 **Hexadecimal Final**
 
 Orden según el formato:
