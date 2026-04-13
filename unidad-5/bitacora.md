@@ -155,7 +155,7 @@ También encontré que `bridgeServer.js` tenía un bloque `"microbitauto"` que r
 
 ---
 
-#### Fase 2: Construcción de `Microbit2ASCIIAdapter.js`
+### Fase 2: Construcción de `Microbit2ASCIIAdapter.js`
 
 Construí el adapter completo heredando de `BaseAdapter`, con la lógica de parseo del protocolo `$T|X|Y|A|B|CHK`.
 
@@ -271,7 +271,7 @@ La trama fue descartada silenciosamente y el sketch no se actualizó con datos b
 
 Sin warnings de checksum gracias al flush(). Datos válidos desde el primer paquete.
 
-## Resumen de archivos modificados
+### Resumen de archivos modificados
 
 | Archivo                               | Acción                                                      |
 |--------------------------------------|-------------------------------------------------------------|
@@ -281,7 +281,7 @@ Sin warnings de checksum gracias al flush(). Datos válidos desde el primer paqu
 | Todos los demás                      | Sin modificaciones                                          |
 
 
-## Firmwares por adapter
+### Firmwares por adapter
 
 | Comando                  | Firmware del micro:bit                          |
 |--------------------------|------------------------------------------------|
@@ -291,3 +291,59 @@ Sin warnings de checksum gracias al flush(). Datos válidos desde el primer paqu
 | `--device microbitBinary`| Binario con `0xAA` + checksum                  |
 
 ## Bitácora de reflexión
+
+### Tabla comparativa: Microbit2ASCIIAdapter vs MicrobitBinaryAdapter
+
+| Característica | `Microbit2ASCIIAdapter` (ASCII `$`) | `MicrobitBinaryAdapter` (Binario) |
+|---|---|---|
+| **Tamaño del paquete** | Variable (~35–50 bytes típico) | Fijo: exactamente 8 bytes |
+| **Mecanismo de framing** | Carácter `$` al inicio + `\n` al final | Byte `0xAA` al inicio, tamaño fijo conocido |
+| **Checksum** | Suma de `|X|+|Y|+|A|+|B|` en decimal, campo `CHK:` al final | `(sum bytes 1..6) % 256`, 1 byte al final |
+| **Parser** | Separar por `|`, buscar `:`, convertir strings a números | `readInt16BE()` y acceso directo por índice de byte |
+| **Depuración con terminal serial** | Muy fácil — legible directamente: `$T:45020|X:-245|Y:12|A:1|B:0|CHK:258` | Imposible a simple vista — se ven caracteres extraños o basura |
+| **Overhead por paquete** | Alto — los nombres de campo (`T:`, `X:`, `CHK:`, etc.) ocupan la mayoría del paquete | Mínimo — 1 byte header + 1 byte checksum sobre 6 bytes de datos |
+| **Resistencia a desalineación** | Alta — `\n` es un delimitador único que no aparece en los datos | Media — `0xAA` puede aparecer como dato válido (falso positivo) |
+| **Velocidad de parseo** | Más lenta — requiere split, trim, conversión de string a número | Más rápida — operaciones bit a bit directas sobre buffer |
+
+---
+
+### ¿Por qué la arquitectura desacoplada permite añadir protocolos sin tocar el frontend?
+
+La arquitectura tiene tres capas que se comunican mediante **contratos fijos**:
+
+`[Hardware] → [Adapter] → {x, y, btnA, btnB} → [bridgeServer] → WebSocket JSON → [bridgeClient] → [FSM / sketch.js]`
+
+
+El contrato entre capas nunca cambia:
+
+- El adapter siempre emite `this.onData?.({ x, y, btnA, btnB })` — no importa si parsea CSV, `$` o binario.
+- El bridgeServer siempre transmite `{ type:"microbit", x, y, btnA, btnB, t }` — no sabe nada del protocolo físico.
+- El `sketch.js` siempre lee `ev.payload.x`, `ev.payload.btnA`, etc. — no sabe que existe el serial.
+
+Cuando añado `MicrobitBinaryAdapter`, el cambio está **completamente contenido** dentro de ese archivo. El resto del sistema no necesita saber que ahora los datos vienen en 8 bytes binarios en lugar de 40 caracteres ASCII. Esto es el **principio de sustitución**: cualquier adapter que cumpla el contrato puede reemplazar a cualquier otro sin romper nada.
+
+Si no existiera esta arquitectura y el parsing estuviera mezclado con el renderizado en `sketch.js`, cada nuevo protocolo requeriría modificar el frontend, el transporte y el servidor al mismo tiempo.
+
+---
+
+## ¿Cuándo usar protocolo binario vs ASCII en el mundo real?
+
+### Prefiero binario cuando:
+
+- **Ancho de banda es limitado:** sensores inalámbricos (BLE, Zigbee, LoRa) tienen payloads máximos pequeños. Un paquete binario de 8 bytes vs 40 bytes ASCII es una diferencia crítica en una red LoRa con 250 bps.
+- **Alta frecuencia de muestreo:** un IMU enviando datos a 1000 Hz genera 40 KB/s en ASCII vs 8 KB/s en binario. A 115200 baud, el ASCII casi satura el canal.
+- **Sistemas embebidos con CPU limitada:** generar strings con `format()` en un microcontrolador de 16 MHz es costoso. `struct.pack` es una sola instrucción.
+- **Ejemplo concreto:** sensores médicos (oxímetros, ECG portátiles) que transmiten por Bluetooth a 100 Hz — cada byte extra agota más rápido la batería.
+
+### Prefiero ASCII cuando:
+
+- **Depuración activa:** durante desarrollo puedo abrir un terminal serial y leer los datos directamente sin ninguna herramienta adicional. Con binario necesito un decodificador hex.
+- **Interoperabilidad:** si el sistema debe integrarse con herramientas distintas (una app móvil, un servidor Python, un dashboard web), el ASCII es parseable en cualquier lenguaje sin acordar un schema binario.
+- **Protocolos de configuración:** comandos como `SET_FREQ:50\n` son más seguros de implementar en ASCII porque los errores son legibles.
+- **Ejemplo concreto:** estaciones meteorológicas que reportan a servidores de terceros — usar CSV o JSON permite que cualquier sistema los consuma sin documentación adicional del protocolo binario.
+
+---
+
+## Diagrama de flujo actualizado con protocolo binario
+
+
