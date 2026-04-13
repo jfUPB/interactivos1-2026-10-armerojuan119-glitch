@@ -344,6 +344,67 @@ Si no existiera esta arquitectura y el parsing estuviera mezclado con el renderi
 
 ---
 
-## Diagrama de flujo actualizado con protocolo binario
+### Diagrama de flujo actualizado con protocolo binario
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     MICRO:BIT (Hardware)                            │
+│                                                                     │
+│  Acelerómetro → xValue, yValue                                      │
+│  Botón A → aState (0/1)       Firmware Python (struct.pack)         │
+│  Botón B → bState (0/1)                                             │
+│                                                                     │
+│  data     = struct.pack('>2h2B', x, y, a, b)  ← 6 bytes            │
+│  checksum = sum(data) % 256                   ← 1 byte              │
+│  packet   = b'\xAA' + data + bytes([chk])     ← 8 bytes total       │
+│                                                                     │
+│  UART 115200 baud @ 10 Hz — paquetes binarios de 8 bytes           │
+│  AA 01 F4 02 0C 01 00 FE                                            │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           │
+                           │ Puerto Serial (COM10) ← CAMBIÓ (binario)
+                           ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                   BACKEND NODE.JS  ← CAMBIÓ SOLO EL ADAPTER         │
+│                                                                     │
+│  bridgeServer.js  (sin cambios)                                     │
+│  └── createAdapter("microbitbinary")                                │
+│       └── MicrobitBinaryAdapter  ← NUEVO                            │
+│            ├── connect() → flush() para limpiar buffer del OS       │
+│            ├── _onChunk(): acumula bytes en Buffer binario          │
+│            ├── Busca header 0xAA al inicio del buffer               │
+│            ├── Espera 8 bytes completos                             │
+│            ├── computed = (sum bytes[1..6]) % 256                   │
+│            ├── Si computed ≠ pkt[7] → console.warn + descarta       │
+│            └── onData?.({ x, y, btnA, btnB })  ← MISMO CONTRATO     │
+│                                                                     │
+│  bridgeServer transmite (sin cambios):                              │
+│  { type:"microbit", x, y, btnA, btnB, t }                           │
+│                                                                     │
+│  WebSocketServer ws://127.0.0.1:8081  (sin cambios)                 │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           │
+                           │ WebSocket JSON  ← SIN CAMBIOS
+                           ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│              FRONTEND (Navegador)  ← SIN NINGÚN CAMBIO              │
+│                                                                     │
+│  bridgeClient.js  (sin cambios)                                     │
+│  sketch.js / PainterTask FSM  (sin cambios)                         │
+│  updateLogic() / draw()  (sin cambios)                              │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 
+### Componentes que cambiaron vs los que no:
+
+| Componente | ¿Cambió? | Razón |
+|---|---|---|
+| Firmware micro:bit | Sí | Nuevo protocolo binario con framing |
+| `MicrobitBinaryAdapter.js` | Sí (creado nuevo) | Parser binario específico |
+| `bridgeServer.js` | Mínimo | Solo añadí el `require` y el caso `"microbitbinary"` |
+| `bridgeClient.js` | No | El transporte WS no depende del protocolo físico |
+| `sketch.js` | No | Solo lee `{x, y, btnA, btnB}`, no le importa el origen |
+| `fsm.js` | No | Infraestructura pura de estados |
+| `BaseAdapter.js` | No | El contrato ya cubría este caso |
+
+El hecho de que **5 de 7 componentes no requirieran ningún cambio** para soportar un protocolo completamente diferente es la demostración práctica de que la arquitectura desacoplada funciona correctamente.
