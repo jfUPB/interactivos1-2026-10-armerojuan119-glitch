@@ -1,9 +1,811 @@
 # Unidad 3
 
 ## Bitácora de proceso de aprendizaje
+### Actividad1
+- Primero analicé la máquina de estados original del semáforo.
 
+- Identifiqué que debía agregar nuevos estados en lugar de meter lógica dentro de los existentes.
+
+- Implementé el modo peatonal creando un estado intermedio amarillo antes del rojo.
+
+- Implementé el modo nocturno usando dos estados que alternan el amarillo para generar parpadeo.
+
+- Tuve errores con eventos repetidos del botón, pero los solucioné usando `was_pressed()`.
+
+- Aprendí que las máquinas de estados permiten agregar comportamiento sin romper el código anterior.
+  
+``` C#
+from microbit import *
+import utime
+
+class Timer:
+    def __init__(self, owner, event_to_post, duration):
+        self.owner = owner
+        self.event = event_to_post
+        self.duration = duration
+        self.start_time = 0
+        self.active = False
+
+    def start(self, new_duration=None):
+        if new_duration is not None:
+            self.duration = new_duration
+        self.start_time = utime.ticks_ms()
+        self.active = True
+
+    def stop(self):
+        self.active = False
+
+    def update(self):
+        if self.active:
+            if utime.ticks_diff(utime.ticks_ms(), self.start_time) >= self.duration:
+                self.active = False
+                self.owner.post_event(self.event)
+
+
+class Semaforo:
+    def __init__(self,x,y,tRed,tGreen,tYellow):
+        self.event_queue = []
+        self.timers = []
+        self.x=x
+        self.y=y
+
+        self.tRed=tRed
+        self.tGreen=tGreen
+        self.tYellow=tYellow
+
+        self.timer=self.createTimer("Timeout",tRed)
+
+        self.estado_actual=None
+        self.transicion_a(self.estado_waitInRed)
+
+    def createTimer(self,event,duration):
+        t=Timer(self,event,duration)
+        self.timers.append(t)
+        return t
+
+    def post_event(self,ev):
+        self.event_queue.append(ev)
+
+    def update(self):
+        for t in self.timers:
+            t.update()
+
+        while self.event_queue:
+            ev=self.event_queue.pop(0)
+            if self.estado_actual:
+                self.estado_actual(ev)
+
+    def transicion_a(self,nuevo):
+        if self.estado_actual:
+            self.estado_actual("EXIT")
+        self.estado_actual=nuevo
+        self.estado_actual("ENTRY")
+
+    def clear(self):
+        display.set_pixel(self.x,self.y,0)
+        display.set_pixel(self.x,self.y+1,0)
+        display.set_pixel(self.x,self.y+2,0)
+
+    # ===== NORMAL =====
+    def estado_waitInRed(self,ev):
+        if ev=="ENTRY":
+            self.clear()
+            display.set_pixel(self.x,self.y,9)
+            self.timer.start(self.tRed)
+
+        if ev=="Timeout":
+            self.transicion_a(self.estado_waitInGreen)
+
+        if ev=="B":
+            self.transicion_a(self.estado_nightBlinkOn)
+
+    def estado_waitInGreen(self,ev):
+        if ev=="ENTRY":
+            self.clear()
+            display.set_pixel(self.x,self.y+2,9)
+            self.timer.start(self.tGreen)
+
+        if ev=="Timeout":
+            self.transicion_a(self.estado_waitInYellow)
+
+        if ev=="A":  # peatón
+            self.transicion_a(self.estado_pedestrianYellow)
+
+        if ev=="B":
+            self.transicion_a(self.estado_nightBlinkOn)
+
+    def estado_waitInYellow(self,ev):
+        if ev=="ENTRY":
+            self.clear()
+            display.set_pixel(self.x,self.y+1,9)
+            self.timer.start(self.tYellow)
+
+        if ev=="Timeout":
+            self.transicion_a(self.estado_waitInRed)
+
+        if ev=="B":
+            self.transicion_a(self.estado_nightBlinkOn)
+
+    # ===== PEATONAL =====
+    def estado_pedestrianYellow(self,ev):
+        if ev=="ENTRY":
+            self.clear()
+            display.set_pixel(self.x,self.y+1,9)
+            self.timer.start(self.tYellow)
+
+        if ev=="Timeout":
+            self.transicion_a(self.estado_waitInRed)
+
+    # ===== NOCTURNO =====
+    def estado_nightBlinkOn(self,ev):
+        if ev=="ENTRY":
+            self.clear()
+            display.set_pixel(self.x,self.y+1,9)
+            self.timer.start(400)
+
+        if ev=="Timeout":
+            self.transicion_a(self.estado_nightBlinkOff)
+
+        if ev=="A":
+            self.transicion_a(self.estado_waitInRed)
+
+    def estado_nightBlinkOff(self,ev):
+        if ev=="ENTRY":
+            self.clear()
+            self.timer.start(400)
+
+        if ev=="Timeout":
+            self.transicion_a(self.estado_nightBlinkOn)
+
+        if ev=="A":
+            self.transicion_a(self.estado_waitInRed)
+
+
+semaforo1=Semaforo(0,0,2000,1000,500)
+
+while True:
+    if button_a.was_pressed():
+        semaforo1.post_event("A")
+
+    if button_b.was_pressed():
+        semaforo1.post_event("B")
+
+    semaforo1.update()
+    utime.sleep_ms(20)
+```
+**Errores y soluciones durante la implementación**
+
+---
+**Error 1: El botón A generaba muchos cambios de estado**
+
+**Problema:**  
+Al presionar el botón A el semáforo cambiaba varias veces seguidas y saltaba estados.
+
+**Causa:**  
+Se estaba usando `button_a.is_pressed()` dentro del loop, lo que generaba múltiples eventos.
+
+**Solución:**  
+Se reemplazó por `button_a.was_pressed()` para registrar solo una pulsación.
+
+**Aprendizaje:**  
+En sistemas basados en eventos es importante evitar eventos duplicados.
+
+---
+**Error 2: El modo nocturno no parpadeaba**
+
+**Problema:**  
+El semáforo se quedaba en amarillo fijo en lugar de parpadear.
+
+**Causa:**  
+Solo había un estado nocturno y no alternaba entre encendido y apagado.
+
+**Solución:**  
+Se crearon dos estados: uno con el amarillo encendido y otro apagado, que se alternan mediante un temporizador.
+
+**Aprendizaje:**  
+El parpadeo se modela mejor como una alternancia de estados.
+
+---
+**Error 3: El modo peatonal saltaba directamente a rojo**
+
+**Problema:**  
+Al presionar el botón A el semáforo no pasaba por amarillo antes de ponerse en rojo.
+
+**Causa:**  
+Se hacía una transición directa al estado rojo.
+
+**Solución:**  
+Se agregó un estado intermedio de amarillo peatonal antes del rojo.
+
+**Aprendizaje:**  
+Las transiciones intermedias son necesarias para representar comportamientos reales.
+
+---
+**Error 4: El temporizador seguía activo al cambiar de modo**
+
+**Problema:**  
+Al cambiar a modo nocturno el semáforo a veces cambiaba inesperadamente.
+
+**Causa:**  
+El temporizador del estado anterior seguía generando eventos.
+
+**Solución:**  
+Se reinició el temporizador en cada `ENTRY` del nuevo estado.
+
+**Aprendizaje:**  
+Cada estado debe controlar sus propios temporizadores.
+
+---
+**Error 5: Los eventos de botones no se procesaban**
+
+**Problema:**  
+En algunos momentos el semáforo no respondía a los botones.
+
+**Causa:**  
+Los eventos no se estaban enviando a la cola del semáforo.
+
+**Solución:**  
+Se utilizó `semaforo.post_event("A")` y `semaforo.post_event("B")` para enviar los eventos correctamente.
+
+**Aprendizaje:**  
+En arquitecturas orientadas a eventos, los botones no cambian estados directamente, sino que generan eventos que el sistema procesa.
+
+### Actividad2
+
+**Objetivo de la modificación**
+
+El objetivo fue mejorar el temporizador para que:
+
+- Al presionar **A** mientras corre → el temporizador se pause.
+
+- Al presionar **A** otra vez → el temporizador se reanude desde donde quedó.
+
+- Si el temporizador está corriendo y se presiona la secuencia A-B-A → el sistema vuelva al modo de configuración.
+
+Esto implica manejar estado interno, tiempo restante y detección de secuencias de botones.
+
+---
+**Estrategia que seguí**
+
+Para implementar esto decidí:
+
+1. Agregar una variable paused.
+
+2. Guardar el tiempo restante cuando se pausa.
+
+3.  reanudar, iniciar el timer con ese tiempo restante.
+
+4. Crear una lista seq para detectar la secuencia A-B-A.
+
+5. Limpiar la secuencia cuando ya se evalúa.
+``` C#
+from microbit import *
+import utime
+
+class Timer:
+    def __init__(self, duration):
+        self.duration = duration
+        self.start_time = 0
+        self.active = False
+        self.paused = False
+        self.remaining = duration
+
+    def start(self, d=None):
+        if d is not None:
+            self.duration = d
+            self.remaining = d
+        self.start_time = utime.ticks_ms()
+        self.active = True
+        self.paused = False
+
+    def pause(self):
+        if self.active and not self.paused:
+            now = utime.ticks_ms()
+            elapsed = utime.ticks_diff(now, self.start_time)
+            self.remaining = self.duration - elapsed
+            self.paused = True
+
+    def resume(self):
+        if self.active and self.paused:
+            self.start_time = utime.ticks_ms()
+            self.duration = self.remaining
+            self.paused = False
+
+    def stop(self):
+        self.active = False
+        self.paused = False
+
+    def finished(self):
+        if self.active and not self.paused:
+            now = utime.ticks_ms()
+            return utime.ticks_diff(now, self.start_time) >= self.duration
+        return False
+
+
+timer = Timer(5000)
+
+mode = "config"
+seq = []
+
+display.show("C")
+
+while True:
+
+    # -------- BOTONES --------
+    if button_a.was_pressed():
+
+        if mode == "run":
+            seq.append("A")
+
+            if timer.paused:
+                timer.resume()
+            else:
+                timer.pause()
+
+        elif mode == "config":
+            timer.start()
+            mode = "run"
+            display.show(Image.SQUARE)
+
+    if button_b.was_pressed():
+        if mode == "run":
+            seq.append("B")
+
+    # -------- DETECTAR SECUENCIA A-B-A --------
+    if mode == "run" and seq[-3:] == ["A","B","A"]:
+        timer.stop()
+        mode = "config"
+        seq = []
+        display.show("C")
+
+    # -------- TIMER --------
+    if mode == "run" and timer.finished():
+        display.show(Image.YES)
+        timer.stop()
+        mode = "config"
+        seq = []
+
+    utime.sleep_ms(20)
+```
+**Errores que tuve y cómo los solucioné**
+**Error 1:** El temporizador reiniciaba desde cero al reanudar
+
+Al principio simplemente detenía el timer y lo volvía a iniciar, pero eso hacía que empezara desde el tiempo completo.
+
+**Solución**: Guardar el tiempo restante con: `remaining = duration - (ahora - start_time)` Y luego usar ese valor al reanudar.
+
+---
+**Error 2:** El botón A generaba múltiples pausas seguidas
+
+Usé button_a.is_pressed() y el evento se repetía muchas veces.
+
+**Solución:** Cambiar a: `button_a.was_pressed()`, esto generó un solo evento por pulsación.
+
+---
+**Error 3:** La secuencia A-B-A se detectaba incluso cuando estaba pausado... La lógica de secuencia corría siempre.
+
+**Solución:** Solo evaluar la secuencia cuando el temporizador está corriendo.
+
+---
+**Error 4:** La secuencia se quedaba guardada
+
+Después de detectar A-B-A, volvía a dispararse.
+
+**Solución:** Limpiar la lista seq después de usarla.
+
+---
+**Lo que aprendí**
+
+- Pausar timers implica guardar estado, no solo detenerlos.
+
+- Detectar secuencias requiere memoria temporal (listas o buffers).
+
+- was_pressed() es clave.
+
+Pensar en estados evita errores lógicos.
+
+### Actividad 3
+**Descripción general**
+
+En esta actividad analicé la implementación de un temporizador desarrollado en p5.js utilizando la técnica de Máquina de Estados Finita (FSM). El sistema está dividido en tres partes principales: la clase base `FSMTask`, la clase `Timer`, y la clase concreta `Temporizador`, que define los estados específicos del programa.
+
+Lo primero que noté es que la lógica del programa está claramente separada del renderizado. La máquina de estados se encarga únicamente del comportamiento, mientras que las funciones `drawConfig`, `drawArmed` y `drawTimeout` se encargan de la parte visual. Esto hace que el código sea más ordenado y fácil de entender.
+
+---
+
+**Comprensión de la Máquina de Estados**
+
+La clase `FSMTask` funciona como una base genérica para crear máquinas de estado. Maneja:
+
+- Una cola de eventos.
+- Una lista de temporizadores.
+- El estado actual.
+- Las transiciones entre estados usando `ENTRY` y `EXIT`.
+
+Me pareció importante cómo se manejan las transiciones. Cada vez que se cambia de estado, primero se ejecuta el `EXIT` del estado anterior y luego el `ENTRY` del nuevo estado. Esto permite que cada estado tenga su propia lógica de inicialización y limpieza.
+
+El método `update()` procesa primero los temporizadores y luego los eventos en cola. Esto hace que el sistema sea completamente reactivo y organizado.
+
+---
+
+**Análisis del Timer**
+
+La clase `Timer` utiliza `millis()` para medir el tiempo, lo cual es independiente del frame rate. Cuando se cumple la duración configurada, el temporizador publica un evento al objeto dueño (owner).
+
+Entendí que el temporizador es de tipo "one-shot", es decir, se activa una vez y luego debe reiniciarse manualmente. En el estado `estado_armed`, cada vez que ocurre un `TICK`, se vuelve a iniciar el timer si aún quedan segundos por contar.
+
+Una posible mejora sería permitir un modo repetitivo automático para evitar tener que reiniciarlo manualmente en cada ciclo.
+
+---
+
+**Estados del Temporizador**
+
+El temporizador tiene tres estados:
+
+1. `estado_config`: Permite configurar el valor inicial dentro de los límites establecidos.
+2. `estado_armed`: Realiza la cuenta regresiva segundo a segundo.
+3. `estado_timeout`: Se activa cuando el tiempo llega a cero.
+
+El flujo es claro:
+
+CONFIG → ARMED → TIMEOUT → CONFIG
+
+Me parece que la estructura está bien definida y es fácil de seguir. Cada estado tiene responsabilidades específicas y no mezcla lógica con otras partes del sistema.
+
+---
+**Renderizado**
+
+El renderizado depende del estado actual mediante un `Map` que asocia cada estado con su función de dibujo correspondiente. Esto evita usar múltiples estructuras condicionales dentro de `draw()`.
+
+En el estado activo (`estado_armed`), se utiliza un arco para representar visualmente el tiempo restante, lo cual facilita la comprensión del progreso. También se aplica un pequeño efecto visual al número usando una función seno para generar una animación sutil.
+
+Considero que podría mejorarse agregando cambios de color progresivos según el tiempo restante o una animación más marcada al llegar a los últimos segundos.
+
+---
+
+**Reflexiones personales**
+
+Este ejercicio me ayudó a entender mejor cómo implementar una máquina de estados en p5.js sin depender de estructuras condicionales extensas. La FSM organiza el flujo del programa y hace que cada parte tenga una función clara.
+
+También comprendí la importancia de separar la lógica del renderizado. Esto hace que el código sea más escalable y fácil de modificar.
+
+En general, la implementación es clara, reutilizable y bien estructurada. Me deja una buena base para aplicar esta técnica en proyectos más complejos, como juegos o aplicaciones interactivas que requieran múltiples estados y transiciones bien definidas.
 
 ## Bitácora de aplicación 
+### Actividad 4
+```py
+from microbit import *
+import utime
+
+while True:
+    if button_a.was_pressed():
+        uart.write("A\n")
+    if button_b.was_pressed():
+        uart.write("B\n")
+    if button_a.is_pressed() and button_b.is_pressed():
+        uart.write("S\n")
+    utime.sleep_ms(50)
+```
+
+```c#
+const TIMER_LIMITS = {
+  min: 15,
+  max: 25,
+  defaultValue: 20,
+};
+
+const EVENTS = {
+  DEC: "A",
+  INC: "B",
+  START: "S",
+  TICK: "Timeout",
+};
+
+const UI = {
+  dialSize: 250,
+  ringWeight: 20,
+  bigText: 100,
+  configText: 120,
+  helpText: 18,
+};
 
 
-## Bitácora de reflexión
+class Temporizador extends FSMTask {
+  constructor(minValue, maxValue, defaultValue) {
+    super();
+
+    this.minValue = minValue;
+    this.maxValue = maxValue;
+    this.defaultValue = defaultValue;
+    this.configValue = defaultValue;
+    this.totalSeconds = defaultValue;
+    this.remainingSeconds = defaultValue;
+
+    // buffer for recent button events while running
+    this._seqBuffer = [];
+
+    this.myTimer = this.addTimer(EVENTS.TICK, 1000);
+    this.transitionTo(this.estado_config);
+
+  }
+
+  get currentState() {
+    return this.state;
+  }
+
+  estado_config = (ev) => {
+    if (ev === ENTRY) {
+      this.configValue = this.defaultValue;
+    }
+    else if (ev === EVENTS.DEC) {
+      if (this.configValue > this.minValue) this.configValue--;
+    } else if (ev === EVENTS.INC) {
+      if (this.configValue < this.maxValue) this.configValue++;
+    } else if (ev === EVENTS.START) {
+      this.totalSeconds = this.configValue;
+      this.remainingSeconds = this.totalSeconds;
+      this.transitionTo(this.estado_armed);
+    }
+  };
+
+
+  estado_armed = (ev) => {
+    // track A-B-A sequence and reset if detected
+    const record = (symbol) => {
+      this._seqBuffer.push(symbol);
+      if (this._seqBuffer.length > 3) this._seqBuffer.shift();
+      if (
+        this._seqBuffer.length === 3 &&
+        this._seqBuffer[0] === EVENTS.DEC &&
+        this._seqBuffer[1] === EVENTS.INC &&
+        this._seqBuffer[2] === EVENTS.DEC
+      ) {
+        // sequence matched: restart
+        this.transitionTo(this.estado_config);
+        return true;
+      }
+      return false;
+    };
+
+    if (ev === ENTRY) {
+      this._seqBuffer = [];
+      this.myTimer.start();
+    } else if (ev === EVENTS.TICK) {
+      if (this.remainingSeconds > 0) {
+        this.remainingSeconds--;
+        if (this.remainingSeconds === 0) {
+          this.transitionTo(this.estado_timeout);
+        } else {
+          this.myTimer.start();
+        }
+      }
+    } else if (ev === EVENTS.DEC || ev === EVENTS.INC) {
+      // ignore value change but record to check pattern
+      if (record(ev)) return; // if triggered reset, skip further handling
+    } else if (ev === EXIT) {
+      this.myTimer.stop();
+    }
+
+  };
+
+  estado_timeout = (ev) => {
+    if (ev === ENTRY) {
+      console.log("¡TIEMPO!");
+    } else if (ev === EVENTS.DEC) {
+      this.transitionTo(this.estado_config);
+    }
+  }
+}
+
+let temporizador;
+const renderer = new Map();
+
+// ---- serial communication support via Web Serial API ----
+let port;
+
+async function connectSerial() {
+  try {
+    // prompt user to select a serial port
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 115200 });
+    console.log('Port opened');
+    readSerial();
+  } catch (err) {
+    console.error('Serial connection failed', err);
+  }
+}
+
+async function readSerial() {
+  const textDecoder = new TextDecoderStream();
+  const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+  const reader = textDecoder.readable.getReader();
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (value) {
+        let msg = value.trim();
+        if (msg === EVENTS.DEC || msg === EVENTS.INC || msg === EVENTS.START) {
+          temporizador.postEvent(msg);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Read error', err);
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  temporizador = new Temporizador(
+    TIMER_LIMITS.min,
+    TIMER_LIMITS.max,
+    TIMER_LIMITS.defaultValue
+  );
+  textAlign(CENTER, CENTER);
+
+  // set up rendering callbacks
+  renderer.set(temporizador.estado_config, () => drawConfig(temporizador.configValue));
+  renderer.set(temporizador.estado_armed, () => drawArmed(temporizador.remainingSeconds, temporizador.totalSeconds));
+  renderer.set(temporizador.estado_timeout, () => drawTimeout());
+
+  // create connect button for Web Serial
+  const btn = createButton('connect serial');
+  btn.position(10, 10);
+  btn.mousePressed(connectSerial);
+}
+
+function draw() {
+  temporizador.update();
+  renderer.get(temporizador.currentState)?.();
+}
+
+function drawConfig(val) {
+  background(20, 40, 80);
+  fill(255);
+  textSize(120);
+  text(val, width / 2, height / 2);
+  textSize(18);
+  fill(200);
+  text("A(-) B(+) S(start)", width / 2, height / 2 + 100);
+}
+
+function drawArmed(val, total) {
+  background(20, 20, 20);
+  let pulse = sin(frameCount * 0.1) * 10;
+
+  noFill();
+  strokeWeight(20);
+  stroke(255, 100, 0, 50);
+  ellipse(width / 2, height / 2, 250);
+
+  stroke(255, 150, 0);
+  let angle = map(val, 0, total, 0, TWO_PI);
+  arc(width / 2, height / 2, 250, 250, -HALF_PI, angle - HALF_PI);
+
+  fill(255);
+  noStroke();
+  textSize(100 + pulse);
+  text(val, width / 2, height / 2);
+}
+
+function drawTimeout() {
+  let bg = frameCount % 20 < 10 ? color(150, 0, 0) : color(255, 0, 0);
+  background(bg);
+  fill(255);
+  textSize(100);
+  text("¡TIEMPO!", width / 2, height / 2);
+}
+
+function keyPressed() {
+  if (key === "a" || key === "A") temporizador.postEvent("A");
+  if (key === "b" || key === "B") temporizador.postEvent("B");
+  if (key === "s" || key === "S") temporizador.postEvent("S");
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+
+```
+Qué hice y cómo avancé
+Comencé con el código base
+
+Tenía una clase Temporizador con tres estados: configuración, armado y tiempo cumplido.
+La pantalla mostraba el valor y podía manejar las teclas A, B y S para ajustar y arrancar.
+Probé la librería p5.serialport
+
+Añadí <script src="…/p5.serialport.js"> al HTML y creé new p5.SerialPort() en setup().
+Registré callbacks (on('data'), etc.) y esperé a que llegaran datos.
+Al ejecutar en el navegador apareció el error:
+TypeError: p5.SerialPort is not a constructor.
+Investigación del error
+
+Vi que la librería necesitaba un servidor aparte (p5.serialserver) y que el constructor
+simplemente no existía en el contexto.
+Decidí no seguir gastando tiempo con ella y buscqué otra forma más sencilla.
+Implementé Web Serial nativo
+
+Eliminé la dependencia del HTML.
+
+Escribí dos funciones:
+```
+let port;
+
+async function connectSerial() {
+  port = await navigator.serial.requestPort();
+  await port.open({ baudRate: 115200 });
+  readSerial();
+}
+
+async function readSerial() {
+  const textDecoder = new TextDecoderStream();
+  port.readable.pipeTo(textDecoder.writable);
+  const reader = textDecoder.readable.getReader();
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    if (value) {
+      let msg = value.trim();
+      if ([EVENTS.DEC, EVENTS.INC, EVENTS.START].includes(msg)) {
+        temporizador.postEvent(msg);
+      }
+    }
+  }
+  reader.releaseLock();
+}
+```
+Puse un botón “connect serial” en el setup() para pedir el puerto cuando quisiera.
+
+Dejé keyPressed() para poder seguir usando el teclado durante las pruebas.
+
+Añadí la secuencia A‑B‑A
+
+En el constructor guardé un arreglo _seqBuffer para los últimos tres eventos.
+
+En estado_armed registré cada DEC o INC y, si el búfer contenía A,B,A,
+hacía transitionTo(this.estado_config) para reiniciar el temporizador:
+```
+const record = (symbol) => {
+  this._seqBuffer.push(symbol);
+  if (this._seqBuffer.length > 3) this._seqBuffer.shift();
+  if (
+    this._seqBuffer.length === 3 &&
+    this._seqBuffer[0] === EVENTS.DEC &&
+    this._seqBuffer[1] === EVENTS.INC &&
+    this._seqBuffer[2] === EVENTS.DEC
+  ) {
+    this.transitionTo(this.estado_config);
+    return true;
+  }
+  return false;
+};
+```
+Probé todo en acción
+
+Serví la carpeta con python -m http.server porque Web Serial no funciona en .
+Abrí la página en Chrome, hice click en “connect serial” y seleccioné el micro:bit.
+Presioné los botones del micro:bit:
+A y B ajustaban el valor, S lo arrancaba.
+Durante la cuenta, A‑B‑A reiniciaba el temporizador como quería.
+⚠️ Problemas que encontré y cómo los resolví
+Constructor de p5.serialport no existe
+→ La librería no era compatible. Terminé borrándola y usando la Web Serial.
+
+El navegador bloqueaba el puerto desde file://
+→ Usé un servidor local para que la API funcionara.
+
+📚 Lo que aprendí
+La API Web Serial es muy práctica y elimina dependencias extra.
+Siempre conviene comprobar si una librería está viva y funciona en el
+entorno que estamos usando.
+Manejar streams asíncronos (con TextDecoderStream y getReader) es fácil una vez
+entiendes el patrón.
+Es útil dejar un “modo teclado” mientras desarrollas con hardware real.
+Documentar el proceso (qué probé, qué falló, cómo lo solucioné) ayuda a no olvidarlo
+y a preparar la entrega.
+Así es como avancé, probé, fallé y finalmente lo conseguí. Puedes usar este texto tal cual
+en tu informe o adaptarlo a tu estilo.
